@@ -1,0 +1,24 @@
+[
+  {
+    "id": "img-0001",
+    "title": "Laks i merd – kveldslys",
+    "src": "farm-salmon-fishing-norway-norway-is-biggest-producer-farmed-salmon-world-with-more-than-one-million-tonnes-produced-each-year (2).jpg",
+    "category": "Oppdrett",
+    "tags": ["laks", "merd", "havbruk"],
+    "date": "2025-10-20",
+    "description": "Oversiktsbilde av laks i merd.",
+    "author": "BKSN",
+    "license": "Intern bruk"
+  },
+  {
+    "id": "img-0002",
+    "title": "Fôring – detalj",
+    "src": "farm-salmon-fishing-norway-norway-is-biggest-producer-farmed-salmon-world-with-more-than-one-million-tonnes-produced-each-year.jpg",
+    "category": "Drift",
+    "tags": ["fôr", "drift", "utstyr"],
+    "date": "2025-09-02",
+    "description": "Detalj av fôringsprosess.",
+    "author": "BKSN",
+    "license": "Intern bruk"
+  }
+]
