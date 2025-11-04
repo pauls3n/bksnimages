@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BKSN Bildebank – prototype</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="description" content="En lettvekts, statisk bildebank som kan hostes gratis på GitHub Pages. Søk, filtrer, kategorier og tagger – alt i én HTML-fil." />
+  <style>
+    /* Fallback for browsers uten Tailwind preflight */
+    img{display:block;max-width:100%;height:auto}
+    .truncate-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .tag{ font-size:0.75rem; padding:0.125rem 0.5rem; border-radius:9999px; border:1px solid rgb(226,232,240); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-sky-600/10 flex items-center justify-center border border-sky-200">
+          <span class="font-semibold text-sky-700">B</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-semibold leading-tight">BKSN Bildebank</h1>
+          <p class="text-sm text-slate-500 -mt-0.5">Statisk, gratis på GitHub Pages • Søk • Kategorier • Tagger</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnExport" class="px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-100">Eksporter visning (CSV)</button>
+        <a href="#howto" class="px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-100">Hvordan bruke</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-6">
+    <!-- Controls -->
+    <section class="grid gap-4 md:grid-cols-12 md:items-end">
+      <div class="md:col-span-5">
+        <label class="text-sm font-medium text-slate-600">Søk (tittel, beskrivelse, tagger)</label>
+        <input id="q" type="search" placeholder="Søk i bilder…" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-sky-400" />
+      </div>
+      <div class="md:col-span-4">
+        <label class="text-sm font-medium text-slate-600">Kategorier</label>
+        <select id="category" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2" multiple size="3"></select>
+        <p class="text-xs text-slate-500 mt-1">Hold Ctrl/⌘ for å velge flere</p>
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-sm font-medium text-slate-600">Sorter</label>
+        <select id="sort" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+          <option value="date_desc">Nyeste først</option>
+          <option value="date_asc">Eldste først</option>
+          <option value="title_asc">Tittel A–Å</option>
+          <option value="title_desc">Tittel Å–A</option>
+        </select>
+      </div>
+      <div class="md:col-span-1">
+        <label class="text-sm font-medium text-slate-600">Vis</label>
+        <select id="perPage" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2">
+          <option>24</option>
+          <option>48</option>
+          <option>96</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Active filters + count -->
+    <section class="mt-3 flex flex-wrap items-center gap-2 text-sm" id="activeFilters"></section>
+    <div class="mt-1 text-xs text-slate-500" id="count"></div>
+
+    <!-- Grid -->
+    <section id="grid" class="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"></section>
+
+    <!-- Pagination -->
+    <div class="mt-6 flex items-center justify-center gap-2" id="pager"></div>
+
+    <!-- How to -->
+    <section id="howto" class="mt-16 rounded-2xl border border-slate-200 bg-white p-6">
+      <h2 class="text-lg font-semibold">Hvordan bruke denne bildebanken</h2>
+      <ol class="list-decimal ml-5 mt-3 space-y-2 text-sm text-slate-700">
+        <li><strong>Host gratis:</strong> Legg denne HTML-filen i en GitHub‑repo og aktiver GitHub Pages. Ferdig.</li>
+        <li><strong>Legg til bilder:</strong> Opprett mappen <code>/images</code> og last opp bildefiler (JPG/PNG/SVG/WEBP).</li>
+        <li><strong>Metadata:</strong> Rediger <code>data</code>‑feltet i denne filen (se <em>DATA START</em>) eller pek den til en ekstern <code>metadata.json</code> i repoet.
+          Minimumsfelter: <code>id</code>, <code>title</code>, <code>src</code>, <code>category</code>, <code>tags[]</code>, <code>date</code>, <code>description</code>.</li>
+        <li><strong>Søk & filtrer:</strong> Skjer i nettleseren, så alt funker statisk – ingen server nødvendig.</li>
+        <li><strong>Rettigheter:</strong> Legg inn <code>license</code> eller <code>rights</code> i metadata for å styre bruk.</li>
+      </ol>
+      <p class="mt-3 text-xs text-slate-500">Tips: Skal flere redigere samtidig uten Git-kunnskap? Bruk GitHub web‑UI eller koble til et enkelt CMS senere.</p>
+    </section>
+  </main>
+
+  <!-- DATA START: Rediger/erstatt denne demo-listen -->
+  <script>
+    /**
+     * DEMODATA – bytt ut med dine bilder. 
+     * Om du vil hente fra en ekstern JSON: 
+     *  1) legg en metadata.json i repoet
+     *  2) bytt ut `const USE_EXTERNAL_JSON = false` til true, og sett `JSON_URL`
+     */
+    const USE_EXTERNAL_JSON = false;
+    const JSON_URL = 'metadata.json'; // hvis USE_EXTERNAL_JSON = true
+
+    const demoData = [
+      {
+        id: 'img-0001',
+        title: 'Laks i merd – kveldslys',
+        src: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1200&q=60',
+        width: 1600,
+        height: 900,
+        category: 'Oppdrett',
+        tags: ['laks', 'merd', 'havbruk'],
+        date: '2025-10-20',
+        description: 'Oversiktsbilde av laks i merd. Bruk til generelle illustrasjoner av havbruk.',
+        author: 'Unsplash demo',
+        license: 'CC0/unsplash'
+      },
+      {
+        id: 'img-0002',
+        title: 'Fôring – detalj',
+        src: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=60',
+        width: 1600,
+        height: 900,
+        category: 'Drift',
+        tags: ['fôr', 'drift', 'utstyr'],
+        date: '2025-09-02',
+        description: 'Makro/detalj av fôringsprosess. Egner seg til fagstoff om produksjon.',
+        author: 'Unsplash demo',
+        license: 'CC0/unsplash'
+      },
+      {
+        id: 'img-0003',
+        title: 'Kvalitet & matsikkerhet',
+        src: 'https://images.unsplash.com/photo-1473447198193-b6f6f1e57c88?auto=format&fit=crop&w=1200&q=60',
+        width: 1600,
+        height: 900,
+        category: 'Prosess',
+        tags: ['kvalitet', 'mat', 'HMS'],
+        date: '2025-07-11',
+        description: 'Prosesslinje – bruk til kurs om kvalitetskontroll og hygiene.',
+        author: 'Unsplash demo',
+        license: 'CC0/unsplash'
+      },
+      {
+        id: 'img-0004',
+        title: 'Hav og natur',
+        src: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=60',
+        width: 1600,
+        height: 900,
+        category: 'Natur',
+        tags: ['hav', 'miljø', 'bærekraft'],
+        date: '2024-06-01',
+        description: 'Stemningsbilde av kyst. Fin som bakgrunn i brosjyrer.',
+        author: 'Unsplash demo',
+        license: 'CC0/unsplash'
+      }
+    ];
+  </script>
+  <!-- DATA END -->
+
+  <script>
+    // Enkel klient-side "DAM" – filtrering, søk, paging og CSV-eksport
+    const state = {
+      q: '',
+      category: [],
+      sort: 'date_desc',
+      perPage: 24,
+      page: 1,
+      items: []
+    };
+
+    const el = (id)=>document.getElementById(id);
+
+    async function loadData(){
+      if(USE_EXTERNAL_JSON){
+        const res = await fetch(JSON_URL);
+        state.items = await res.json();
+      } else {
+        state.items = demoData;
+      }
+      // init category options
+      const cats = [...new Set(state.items.map(x=>x.category).filter(Boolean))].sort();
+      const catSel = el('category');
+      cats.forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c; catSel.appendChild(opt);
+      });
+      render();
+    }
+
+    function normalize(s){
+      return (s||'').toString().toLowerCase();
+    }
+
+    function matches(item){
+      const {q, category} = state;
+      const qn = normalize(q);
+      const hay = [item.title, item.description, (item.tags||[]).join(' ')].map(normalize).join(' ');
+      const inCats = category.length ? category.includes(item.category) : true;
+      const inQ = qn ? hay.includes(qn) || hay.split(/\s+/).some(w=> w && qn.includes(w)) : true;
+      return inCats && inQ;
+    }
+
+    function sortItems(items){
+      switch(state.sort){
+        case 'date_desc': return items.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+        case 'date_asc': return items.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+        case 'title_asc': return items.sort((a,b)=> normalize(a.title).localeCompare(normalize(b.title)));
+        case 'title_desc': return items.sort((a,b)=> normalize(b.title).localeCompare(normalize(a.title)));
+        default: return items;
+      }
+    }
+
+    function paginate(items){
+      const start = (state.page-1)*state.perPage;
+      return items.slice(start, start + state.perPage);
+    }
+
+    function render(){
+      const filtered = state.items.filter(matches);
+      const sorted = sortItems(filtered);
+      const pageItems = paginate(sorted);
+
+      // Count
+      el('count').textContent = `${filtered.length} treff` + (filtered.length!==state.items.length? ` • filtrert fra ${state.items.length}`: '');
+
+      // Active filters
+      const af = el('activeFilters');
+      af.innerHTML = '';
+      if(state.q){
+        const b = chip(`Søk: \"${state.q}\"`, ()=>{ state.q=''; el('q').value=''; state.page=1; render(); }); af.appendChild(b);
+      }
+      if(state.category.length){
+        const b = chip(`Kategori: ${state.category.join(', ')}`, ()=>{ state.category=[]; [...el('category').options].forEach(o=>o.selected=false); state.page=1; render(); }); af.appendChild(b);
+      }
+
+      // Grid
+      const grid = el('grid');
+      grid.innerHTML = pageItems.map(card).join('');
+
+      // Pager
+      const pager = el('pager');
+      pager.innerHTML = '';
+      const totalPages = Math.max(1, Math.ceil(filtered.length / state.perPage));
+      const mkBtn = (label, disabled, onClick)=>{
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.disabled = disabled;
+        btn.className = `px-3 py-1 rounded-lg border ${disabled? 'text-slate-300 border-slate-200':'border-slate-300 hover:bg-slate-100'}`;
+        btn.onclick = onClick; return btn;
+      };
+      pager.appendChild(mkBtn('«', state.page===1, ()=>{ state.page=1; render(); }));
+      pager.appendChild(mkBtn('‹', state.page===1, ()=>{ state.page--; render(); }));
+      const info = document.createElement('span');
+      info.className = 'text-sm text-slate-600';
+      info.textContent = `Side ${state.page} av ${totalPages}`;
+      pager.appendChild(info);
+      pager.appendChild(mkBtn('›', state.page===totalPages, ()=>{ state.page++; render(); }));
+      pager.appendChild(mkBtn('»', state.page===totalPages, ()=>{ state.page=totalPages; render(); }));
+    }
+
+    function card(item){
+      const tags = (item.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join(' ');
+      const license = item.license? `<span class="text-xs text-slate-500">• ${escapeHtml(item.license)}</span>`: '';
+      return `
+        <article class="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:shadow-md transition">
+          <div class="aspect-[4/3] bg-slate-100 overflow-hidden">
+            <img src="${escapeHtml(item.src)}" alt="${escapeHtml(item.title)}" class="h-full w-full object-cover group-hover:scale-[1.02] transition" loading="lazy"/>
+          </div>
+          <div class="p-3">
+            <h3 class="font-medium leading-tight">${escapeHtml(item.title)}</h3>
+            <p class="mt-1 text-sm text-slate-600 truncate-2">${escapeHtml(item.description||'')}</p>
+            <div class="mt-2 flex flex-wrap gap-1">${tags}</div>
+            <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
+              <span>${escapeHtml(item.category||'')}</span>
+              <span>${escapeHtml(item.date||'')}</span>
+            </div>
+            <div class="mt-1 text-xs text-slate-500">${escapeHtml(item.author||'') } ${license}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    function chip(label, onRemove){
+      const b = document.createElement('button');
+      b.className = 'flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-100';
+      b.innerHTML = `<span>${label}</span><span aria-hidden>✕</span>`;
+      b.onclick = onRemove; return b;
+    }
+
+    function escapeHtml(s){
+      return (s||'').toString().replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    // CSV eksport av nåværende filtrert liste
+    function exportCsv(items){
+      const cols = ['id','title','src','category','tags','date','description','author','license'];
+      const rows = [cols.join(',')].concat(items.map(it=>{
+        return cols.map(k=>{
+          const v = k==='tags' ? (it.tags||[]).join('|') : (it[k]||'');
+          const esc = '"' + String(v).replace(/"/g,'""') + '"';
+          return esc;
+        }).join(',');
+      }));
+      const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'bildebank-eksport.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Event wiring
+    el('q').addEventListener('input', e=>{ state.q = e.target.value.trim(); state.page=1; render(); });
+    el('category').addEventListener('change', e=>{
+      const selected = [...e.target.options].filter(o=>o.selected).map(o=>o.value);
+      state.category = selected; state.page=1; render();
+    });
+    el('sort').addEventListener('change', e=>{ state.sort=e.target.value; state.page=1; render(); });
+    el('perPage').addEventListener('change', e=>{ state.perPage=parseInt(e.target.value,10)||24; state.page=1; render(); });
+    el('btnExport').addEventListener('click', ()=>{
+      const filtered = sortItems(state.items.filter(matches));
+      exportCsv(filtered);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>
